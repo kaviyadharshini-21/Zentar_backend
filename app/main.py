@@ -24,18 +24,18 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(emails.router)
-app.include_router(reminders.router)
-app.include_router(meetings.router)
-app.include_router(settings_router.router)
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(emails.router, prefix="/api/v1")
+app.include_router(reminders.router, prefix="/api/v1")
+app.include_router(meetings.router, prefix="/api/v1")
+app.include_router(settings_router.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

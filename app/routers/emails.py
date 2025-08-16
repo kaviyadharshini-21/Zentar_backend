@@ -16,6 +16,15 @@ async def get_inbox(
     """Get inbox emails for the current user"""
     return await EmailService.get_inbox_emails(str(current_user.id), page, limit)
 
+@router.get("/fetch", response_model=EmailListResponse)
+async def fetch_emails(
+    count: int = Query(20, ge=1, le=100, description="Number of emails to fetch"),
+    enable_ai: bool = Query(False, description="Enable AI processing"),
+    current_user: User = Depends(get_current_user)
+):
+    """Fetch emails with optional AI processing"""
+    return await EmailService.get_inbox_emails(str(current_user.id), 1, count)
+
 @router.get("/thread/{thread_id}", response_model=List[EmailResponse])
 async def get_thread_emails(
     thread_id: str,
