@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import init_db, close_db
-from app.routers import auth, emails, reminders, meetings, settings as settings_router
+from app.routers import auth, emails, reminders, meetings, meeting_ai, settings as settings_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +35,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(emails.router, prefix="/api/v1")
 app.include_router(reminders.router, prefix="/api/v1")
 app.include_router(meetings.router, prefix="/api/v1")
+app.include_router(meeting_ai.router, prefix="/api/v1")
 app.include_router(settings_router.router, prefix="/api/v1")
 
 @app.get("/")

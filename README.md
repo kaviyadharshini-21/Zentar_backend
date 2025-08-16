@@ -1,6 +1,6 @@
 # Zentar Email Backend API
 
-A FastAPI backend for email management with reminders and meetings, built with MongoDB and JWT authentication.
+A FastAPI backend for email management with reminders and meetings, built with MongoDB and JWT authentication. Now featuring **AI-powered meeting management** with Google Calendar integration and Gemini AI capabilities.
 
 ## 🚀 Features
 
@@ -8,6 +8,12 @@ A FastAPI backend for email management with reminders and meetings, built with M
 - **Email Management**: Send, receive, and manage emails with threading
 - **Reminders**: Set reminders for emails with scheduled notifications
 - **Meeting Scheduling**: Create and manage meetings with participants
+- **🤖 AI-Powered Meeting Management**: 
+  - Natural language meeting commands
+  - Smart scheduling with conflict detection
+  - AI-powered meeting notes analysis
+  - Google Calendar integration
+  - Free time slot detection
 - **User Settings**: Customizable user preferences and settings
 - **RESTful API**: Clean, documented API endpoints
 - **MongoDB Integration**: Using Motor and Beanie for async MongoDB operations
@@ -20,12 +26,17 @@ A FastAPI backend for email management with reminders and meetings, built with M
 - **JWT**: JSON Web Tokens for authentication
 - **Pydantic**: Data validation and serialization
 - **Uvicorn**: ASGI server for running FastAPI
+- **Google Calendar API**: Calendar integration and sync
+- **Google Gemini AI**: Natural language processing and meeting analysis
+- **Pytz**: Timezone handling and management
 
 ## 📋 Prerequisites
 
 - Python 3.8+
 - MongoDB (local or cloud instance)
 - pip (Python package manager)
+- Google Cloud Platform account (for Calendar API)
+- Google AI Studio account (for Gemini API)
 
 ## 🚀 Installation
 
@@ -63,7 +74,16 @@ A FastAPI backend for email management with reminders and meetings, built with M
    - Ensure MongoDB is running locally or update the `MONGODB_URL` in your `.env` file
    - The database will be created automatically on first run
 
-6. **Run the application**
+6. **Set up Google Calendar API** (Optional)
+   - Follow the setup guide in `AI_MEETING_SETUP.md`
+   - Download `credentials.json` from Google Cloud Console
+   - Place it in your project root
+
+7. **Set up Gemini AI** (Optional)
+   - Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Add it to your `.env` file as `GEMINI_API_KEY`
+
+8. **Run the application**
    ```bash
    python -m app.main
    ```
@@ -80,6 +100,39 @@ Once the server is running, you can access:
 - **Interactive API Docs**: http://localhost:8000/docs
 - **ReDoc Documentation**: http://localhost:8000/redoc
 - **Health Check**: http://localhost:8000/health
+
+## 🤖 AI Meeting Management
+
+The new AI-powered meeting management system includes:
+
+### Natural Language Commands
+```bash
+# Schedule meetings using natural language
+POST /api/v1/meetings/ai/command
+{
+  "command": "Schedule meeting tomorrow at 2 PM with john@example.com"
+}
+```
+
+### Meeting Notes Analysis
+```bash
+# Analyze meeting notes with AI
+POST /api/v1/meetings/ai/summarize-notes
+{
+  "notes": "Team standup meeting notes..."
+}
+```
+
+### Smart Scheduling
+```bash
+# Find optimal meeting times
+POST /api/v1/meetings/ai/find-free-slots
+{
+  "duration_minutes": 60
+}
+```
+
+For detailed setup and usage instructions, see [AI_MEETING_SETUP.md](AI_MEETING_SETUP.md).
 
 ## 🔐 Authentication
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import HTTPException, status
 from app.models.email import Email
@@ -22,14 +22,12 @@ class EmailService:
                     "isDeleted": False
                 }
             ).sort([("sentAt", -1)]).skip(skip).limit(limit).to_list()
-            
             # Get total count
-            total = await Email.count_documents({
+            total = await Email.find({
                 "to_users": ObjectId(user_id),
                 "isDeleted": False
-            })
-            
-            # Convert to response format
+            }).count()
+            # Convert to response forma t
             email_responses = []
             for email in emails:
                 email_responses.append(EmailResponse(
@@ -44,7 +42,7 @@ class EmailService:
                     sentAt=email.sentAt,
                     attachments=email.attachments
                 ))
-            
+            print(email_responses)
             return EmailListResponse(
                 emails=email_responses,
                 total=total,
@@ -52,6 +50,11 @@ class EmailService:
                 limit=limit
             )
         except Exception as e:
+            import logging
+            logging.error(f"Error fetching inbox emails for user {user_id}: {str(e)}")
+            logging.error(f"Exception type: {type(e)._name_}")
+            logging.error(f"Exception details: {e}")
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error fetching inbox emails: {str(e)}"
@@ -133,7 +136,7 @@ class EmailService:
             await email.insert()
             
             # Update thread with new email
-            await thread.update({"$push": {"emails": email.id}, "$set": {"lastUpdated": datetime.utcnow()}})
+            await thread.update({"$push": {"emails": email.id}, "$set": {"lastUpdated": datetime.now()}})
             
             return EmailResponse(
                 id=str(email.id),
