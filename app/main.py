@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,6 +6,12 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import init_db, close_db
 from app.routers import auth, emails, reminders, meetings, settings as settings_router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,6 +58,52 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "API is running"}
+
+@app.get("/debug/db")
+async def debug_database():
+    """Debug endpoint to test database connection"""
+    try:
+        from app.database import init_db
+        from app.models.user import User
+        import logging
+        
+        logging.info("Testing database connection...")
+        
+        # Test if we can connect to MongoDB
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from app.config import settings
+        
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        await client.admin.command('ping')
+        
+        # Test if we can query users
+        user_count = await User.count_documents({})
+        
+        return {
+            "status": "success",
+            "mongodb_connection": "OK",
+            "database_name": settings.DATABASE_NAME,
+            "user_count": user_count,
+            "message": "Database connection and query successful"
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"Database debug failed: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "message": "Database connection or query failed"
+        }
+
+@app.get("/debug/test")
+async def debug_test():
+    """Simple test endpoint without authentication"""
+    return {
+        "status": "success",
+        "message": "Basic endpoint working",
+        "timestamp": "2024-01-01T00:00:00Z"
+    }
 
 # Global exception handler
 @app.exception_handler(HTTPException)

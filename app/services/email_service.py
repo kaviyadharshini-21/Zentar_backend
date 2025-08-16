@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import HTTPException, status
 from app.models.email import Email
@@ -7,6 +7,102 @@ from app.models.user import User
 from app.schemas.email import EmailCreate, EmailResponse, EmailUpdate, EmailListResponse
 from app.schemas.thread import ThreadResponse
 from bson import ObjectId
+import imaplib
+import email
+from email.header import decode_header
+from email.utils import parsedate_to_datetime
+from app.config import settings
+
+def fetch_latest_10_emails():
+    try:
+        # Check if IMAP settings are configured
+        if not settings.IMAP_SERVER or not settings.IMAP_USERNAME or not settings.IMAP_PASSWORD:
+            print("IMAP settings not configured, returning empty list")
+            return []
+            
+        # Connect to IMAP server
+        mail = imaplib.IMAP4_SSL(settings.IMAP_SERVER)
+        mail.login(settings.IMAP_USERNAME, settings.IMAP_PASSWORD)
+
+        # Select inbox
+        mail.select("inbox")
+
+        # Search all emails
+        status, messages = mail.search(None, "ALL")
+        email_ids = messages[0].split()
+
+        # Get last 10 email IDs
+        latest_ids = email_ids[-10:]
+
+        emails = []
+        for num in reversed(latest_ids):
+            status, data = mail.fetch(num, "(RFC822)")
+            raw_email = data[0][1]
+            msg = email.message_from_bytes(raw_email)
+
+            # Decode subject
+            subject, encoding = decode_header(msg["Subject"])[0]
+            if isinstance(subject, bytes):
+                subject = subject.decode(encoding if encoding else "utf-8")
+
+            # Decode sender
+            from_, encoding = decode_header(msg.get("From"))[0]
+            if isinstance(from_, bytes):
+                from_ = from_.decode(encoding if encoding else "utf-8")
+
+            # Decode recipient (To field)
+            to_field = msg.get("To", "")
+            to_encoding = decode_header(to_field)[0][1] if to_field else None
+            if isinstance(to_field, bytes):
+                to_field = to_field.decode(to_encoding if to_encoding else "utf-8")
+
+            # Get email body
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        body = part.get_payload(decode=True).decode()
+                        break
+            else:
+                body = msg.get_payload(decode=True).decode()
+
+            # Get date
+            date_str = msg.get("Date", "")
+            try:
+                from email.utils import parsedate_to_datetime
+                sent_at = parsedate_to_datetime(date_str)
+            except:
+                sent_at = datetime.now()
+
+            # Get attachments
+            attachments = []
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_filename():
+                        filename = part.get_filename()
+                        if isinstance(filename, bytes):
+                            filename = filename.decode()
+                        attachments.append(filename)
+
+            emails.append({
+                "id": num.decode() if isinstance(num, bytes) else str(num),
+                "from_user": from_,
+                "to_users": [to_field] if to_field else [],
+                "subject": subject,
+                "body": body,
+                "threadId": f"thread_{num.decode() if isinstance(num, bytes) else str(num)}",
+                "isRead": False,
+                "isDeleted": False,
+                "sentAt": sent_at,
+                "attachments": attachments
+            })
+
+
+        mail.logout()
+        return emails
+    except Exception as e:
+        print(f"Error fetching emails from IMAP: {str(e)}")
+        return []
 
 class EmailService:
     @staticmethod
@@ -16,33 +112,23 @@ class EmailService:
             skip = (page - 1) * limit
             
             # Find emails where user is in the 'to' list and not deleted
-            emails = await Email.find(
-                {
-                    "to_users": ObjectId(user_id),
-                    "isDeleted": False
-                }
-            ).sort([("sentAt", -1)]).skip(skip).limit(limit).to_list()
-            
-            # Get total count
-            total = await Email.count_documents({
-                "to_users": ObjectId(user_id),
-                "isDeleted": False
-            })
-            
+            emails = fetch_latest_10_emails()
+            # Get total count from fetched emails
+            total = len(emails)
             # Convert to response format
             email_responses = []
             for email in emails:
                 email_responses.append(EmailResponse(
-                    id=str(email.id),
-                    from_user=str(email.from_user),
-                    to_users=[str(to_id) for to_id in email.to_users],
-                    subject=email.subject,
-                    body=email.body,
-                    threadId=str(email.threadId),
-                    isRead=email.isRead,
-                    isDeleted=email.isDeleted,
-                    sentAt=email.sentAt,
-                    attachments=email.attachments
+                    id=str(email["id"]),
+                    from_user=str(email["from_user"]),
+                    to_users=[str(to_id) for to_id in email["to_users"]],
+                    subject=email["subject"],
+                    body=email["body"],
+                    threadId=str(email["threadId"]),
+                    isRead=email["isRead"],
+                    isDeleted=email["isDeleted"],
+                    sentAt=email["sentAt"],
+                    attachments=email["attachments"]
                 ))
             
             return EmailListResponse(
@@ -52,6 +138,11 @@ class EmailService:
                 limit=limit
             )
         except Exception as e:
+            import logging
+            logging.error(f"Error fetching inbox emails for user {user_id}: {str(e)}")
+            logging.error(f"Exception type: {type(e).__name__}")
+            logging.error(f"Exception details: {e}")
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error fetching inbox emails: {str(e)}"
@@ -133,7 +224,7 @@ class EmailService:
             await email.insert()
             
             # Update thread with new email
-            await thread.update({"$push": {"emails": email.id}, "$set": {"lastUpdated": datetime.utcnow()}})
+            await thread.update({"$push": {"emails": email.id}, "$set": {"lastUpdated": datetime.now()}})
             
             return EmailResponse(
                 id=str(email.id),
