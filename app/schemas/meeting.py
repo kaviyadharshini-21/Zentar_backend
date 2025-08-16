@@ -19,7 +19,7 @@ class MeetingUpdate(BaseModel):
     description: Optional[str] = Field(None, min_length=1)
     startTime: Optional[datetime] = None
     endTime: Optional[datetime] = None
-    status: Optional[str] = Field(None, regex="^(scheduled|completed|cancelled)$")
+    status: Optional[str] = Field(None, pattern="^(scheduled|completed|cancelled)$")
 
 class MeetingResponse(MeetingBase):
     id: str
