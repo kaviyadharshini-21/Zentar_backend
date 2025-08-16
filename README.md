@@ -89,6 +89,29 @@ The API uses JWT (JSON Web Tokens) for authentication. To access protected endpo
 2. **Login**: `POST /auth/login` (returns JWT token)
 3. **Use the token**: Include `Authorization: Bearer <token>` in request headers
 
+## 🔑 Google OAuth Credentials
+
+To use Google OAuth for email functionality, you need to set up credentials:
+
+1. Create a `credentials.json` file in the root directory
+2. Add your Google OAuth credentials in the following format:
+
+```json
+{
+  "installed": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID_HERE",
+    "project_id": "YOUR_GOOGLE_PROJECT_ID_HERE",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": "YOUR_GOOGLE_CLIENT_SECRET_HERE",
+    "redirect_uris": ["http://localhost"]
+  }
+}
+```
+
+**⚠️ Important:** Never commit your actual credentials to version control. The `credentials.json` file is already in `.gitignore`.
+
 ## 📡 API Endpoints
 
 ### Authentication
