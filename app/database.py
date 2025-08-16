@@ -9,19 +9,30 @@ from app.models.meeting import Meeting
 
 async def init_db():
     """Initialize database connection and Beanie models"""
-    client = AsyncIOMotorClient(settings.MONGODB_URL)
-    
-    # Initialize Beanie with the document models
-    await init_beanie(
-        database=client[settings.DATABASE_NAME],
-        document_models=[
-            User,
-            Email,
-            Thread,
-            Reminder,
-            Meeting
-        ]
-    )
+    import logging
+    try:
+        logging.info(f"Connecting to MongoDB at {settings.MONGODB_URL}")
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        
+        # Test connection
+        await client.admin.command('ping')
+        logging.info("MongoDB connection successful")
+        
+        # Initialize Beanie with the document models
+        await init_beanie(
+            database=client[settings.DATABASE_NAME],
+            document_models=[
+                User,
+                Email,
+                Thread,
+                Reminder,
+                Meeting
+            ]
+        )
+        logging.info("Beanie models initialized successfully")
+    except Exception as e:
+        logging.error(f"Database initialization failed: {str(e)}")
+        raise
 
 async def close_db():
     """Close database connection"""

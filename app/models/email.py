@@ -12,7 +12,7 @@ class Email(Document):
     threadId: ObjectId
     isRead: bool = False
     isDeleted: bool = False
-    sentAt: datetime = Field(default_factory=datetime.utcnow)
+    sentAt: datetime = Field(default_factory=datetime.now)
     attachments: List[str] = Field(default_factory=list)
 
     class Settings:

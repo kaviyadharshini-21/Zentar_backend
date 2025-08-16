@@ -5,7 +5,7 @@ from bson import ObjectId
 
 class EmailBase(BaseModel):
     subject: str = Field(..., min_length=1, max_length=200)
-    body: str = Field(..., min_length=1)
+    body: str = Field(default="sample body is used here")
     attachments: Optional[List[str]] = Field(default_factory=list)
 
 class EmailCreate(EmailBase):
