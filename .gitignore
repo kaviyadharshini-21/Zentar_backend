@@ -6,7 +6,28 @@ __pycache__/
 # C extensions
 *.so
 
+# Credentials and sensitive files
 credintals.json
+credentials.json
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!angular.json
+!firebase.json
+!next.config.json
+!tailwind.config.json
+!postcss.config.json
+!eslintrc.json
+!babel.config.json
+!jest.config.json
+!cypress.json
+!tslint.json
+!prettierrc.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 
 # Distribution / packaging
 .Python
