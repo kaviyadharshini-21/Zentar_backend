@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
-
+from app.repositories.email_classification import classify_email
 from fastapi import HTTPException, status
 from bson import ObjectId
 from app.models.email import Email
@@ -92,6 +92,7 @@ def fetch_latest_10_emails():
                             filename = filename.decode()
                         attachments.append(filename)
 
+            category = classify_email(subject,body)
             emails.append({
                 "id": num.decode() if isinstance(num, bytes) else str(num),
                 "from_user": from_,
@@ -102,7 +103,8 @@ def fetch_latest_10_emails():
                 "isRead": False,
                 "isDeleted": False,
                 "sentAt": sent_at,
-                "attachments": attachments
+                "attachments": attachments,
+                "category": category
             })
 
 
@@ -436,7 +438,8 @@ class EmailService:
                     isRead=email["isRead"],
                     isDeleted=email["isDeleted"],
                     sentAt=email["sentAt"],
-                    attachments=email["attachments"]
+                    attachments=email["attachments"],
+                    category=email["category"]
                 ))
             return EmailListResponse(
                 emails=email_responses,
