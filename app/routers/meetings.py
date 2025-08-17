@@ -6,7 +6,7 @@ from app.auth.jwt import get_current_user
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 
-@router.get("/", response_model=MeetingListResponse)
+@router.get("", response_model=MeetingListResponse)
 async def get_meetings(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -15,7 +15,7 @@ async def get_meetings(
     """Get all meetings for the current user"""
     return await MeetingService.get_user_meetings(str(current_user.id), page, limit)
 
-@router.post("/", response_model=MeetingResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MeetingResponse, status_code=status.HTTP_201_CREATED)
 async def create_meeting(
     meeting_data: MeetingCreate,
     current_user: User = Depends(get_current_user)

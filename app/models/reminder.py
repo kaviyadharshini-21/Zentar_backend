@@ -7,7 +7,7 @@ class Reminder(Document):
     userId: ObjectId
     emailId: ObjectId
     remindAt: datetime
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    createdAt: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "reminders"

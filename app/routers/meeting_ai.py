@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel
 from app.services.meeting_service import MeetingService
-from app.auth.auth_service import get_current_user
+from app.auth.jwt import get_current_user
 from app.models.user import User
 
 router = APIRouter(prefix="/meetings/ai", tags=["AI Meeting Management"])

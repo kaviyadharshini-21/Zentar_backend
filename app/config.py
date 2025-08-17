@@ -23,11 +23,6 @@ class Settings:
     IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
     IMAP_PORT = os.getenv("IMAP_PORT", 993)
 
-    GOOGLE_CALENDAR_CREDENTIALS_FILE = os.getenv("GOOGLE_CALENDAR_CREDENTIALS_FILE", "credentials_file.json")
-    GOOGLE_CALENDAR_TOKEN_FILE = os.getenv("GOOGLE_CALENDAR_TOKEN_FILE", "token.pickle")
-    SCOPES = [os.getenv("SCOPES")]
-    DEFAULT_TIMEZONE = "Asia/Kolkata" 
-
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-make-it-long-and-secure")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
@@ -49,7 +44,7 @@ class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Default Settings
-    DEFAULT_TIMEZONE: str = os.getenv("DEFAULT_TIMEZONE", "UTC")
+    DEFAULT_TIMEZONE: str = os.getenv("DEFAULT_TIMEZONE", "Asia/Kolkata")
     
     # Working Hours (24-hour format)
     DEFAULT_WORKING_HOURS: tuple = (9, 17)  # 9 AM to 5 PM

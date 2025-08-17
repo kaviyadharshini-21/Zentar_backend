@@ -7,7 +7,7 @@ from bson import ObjectId
 class Thread(Document):
     participants: List[ObjectId]
     emails: List[ObjectId] = Field(default_factory=list)
-    lastUpdated: datetime = Field(default_factory=datetime.utcnow)
+    lastUpdated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "threads"

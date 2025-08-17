@@ -4,7 +4,7 @@ from typing import List, Optional
 from bson import ObjectId
 
 class MeetingBase(BaseModel):
-    participants: List[str] = Field(..., min_items=1)  # List of user IDs as strings
+    participants: List[str] = Field(..., min_items=1, description="List of participant user IDs or email addresses")
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(..., min_length=1)
     startTime: datetime

@@ -75,9 +75,14 @@ A FastAPI backend for email management with reminders and meetings, built with M
    - The database will be created automatically on first run
 
 6. **Set up Google Calendar API** (Optional)
-   - Follow the setup guide in `AI_MEETING_SETUP.md`
-   - Download `credentials.json` from Google Cloud Console
-   - Place it in your project root
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+   - Enable Google Calendar API
+   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+   - Choose "Desktop application" as application type
+   - Download the `credentials.json` file
+   - Place it in your project root directory
+   - Set `GOOGLE_CALENDAR_CREDENTIALS_FILE=credentials.json` in your `.env` file
 
 7. **Set up Gemini AI** (Optional)
    - Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
@@ -98,6 +103,21 @@ A FastAPI backend for email management with reminders and meetings, built with M
 Once the server is running, you can access:
 
 - **Interactive API Docs**: http://localhost:8000/docs
+
+## 🔧 Troubleshooting
+
+### Google Calendar Issues
+- **"Credentials file not found"**: Make sure `credentials.json` is in your project root
+- **"Authentication failed"**: Check that your Google Cloud project has Calendar API enabled
+- **"Access denied"**: Ensure your OAuth consent screen is configured properly
+
+### Database Issues
+- **"Connection refused"**: Make sure MongoDB is running and accessible
+- **"Authentication failed"**: Check your MongoDB connection string in `.env`
+
+### General Issues
+- **Import errors**: Ensure all dependencies are installed with `pip install -r requirements.txt`
+- **Port conflicts**: Change the port in `.env` if 8000 is already in use
 - **ReDoc Documentation**: http://localhost:8000/redoc
 - **Health Check**: http://localhost:8000/health
 
