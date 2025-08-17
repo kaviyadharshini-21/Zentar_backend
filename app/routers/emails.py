@@ -41,80 +41,6 @@ async def compose_email(
             detail=f"Error composing email: {str(e)}"
         )
 
-@router.post("/compose-template", response_model=Dict[str, Any])
-async def compose_email_with_template(
-    template_type: str = Body(..., description="Type of template (meeting_request, follow_up, thank_you)"),
-    context: Dict[str, Any] = Body(..., description="Context data for the template"),
-    current_user: User = Depends(get_current_user)
-):
-    """Compose an email using predefined templates"""
-    try:
-        email_service = EmailService()
-        result = await email_service.compose_email_with_template(
-            template_type=template_type,
-            context=context
-        )
-        
-        if result["success"]:
-            return result
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result["error"]
-            )
-            
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error composing template email: {str(e)}"
-        )
-
-@router.get("/templates", response_model=Dict[str, Any])
-async def get_available_templates(current_user: User = Depends(get_current_user)):
-    """Get available email templates and their parameters"""
-    templates = {
-        "meeting_request": {
-            "description": "Request a meeting with someone",
-            "required_context": ["recipient_name", "purpose", "proposed_time", "duration", "location"],
-            "example": {
-                "recipient_name": "John Doe",
-                "purpose": "Project review discussion",
-                "proposed_time": "Tomorrow at 2 PM",
-                "duration": "1 hour",
-                "location": "Conference Room A"
-            }
-        },
-        "follow_up": {
-            "description": "Follow up on previous communication",
-            "required_context": ["recipient_name", "previous_interaction", "purpose", "next_steps", "timeline"],
-            "example": {
-                "recipient_name": "Jane Smith",
-                "previous_interaction": "Our meeting last week",
-                "purpose": "Check on action items",
-                "next_steps": "Schedule follow-up meeting",
-                "timeline": "This week"
-            }
-        },
-        "thank_you": {
-            "description": "Express gratitude for help or support",
-            "required_context": ["recipient_name", "reason", "specific_action", "future_collaboration"],
-            "example": {
-                "recipient_name": "Mike Johnson",
-                "reason": "Help with project",
-                "specific_action": "Technical guidance and support",
-                "future_collaboration": "Looking forward to working together again"
-            }
-        }
-    }
-    
-    return {
-        "success": True,
-        "templates": templates,
-        "available_tones": ["professional", "friendly", "formal", "casual", "persuasive"],
-        "available_lengths": ["short", "medium", "long"],
-        "available_recipient_types": ["colleague", "client", "manager", "friend"]
-    }
-
 @router.get("/inbox", response_model=EmailListResponse)
 async def get_inbox(
     page: int = Query(1, ge=1, description="Page number"),
@@ -148,6 +74,42 @@ async def send_email(
 ):
     """Send a new email"""
     return await EmailService.send_email(str(current_user.id), email_data)
+
+@router.post("/send-smtp", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def send_email_via_smtp(
+    email_data: EmailCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Send email via SMTP to actual email addresses"""
+    try:
+        result = await EmailService.send_email_via_smtp(str(current_user.id), email_data)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sending email via SMTP: {str(e)}"
+        )
+
+@router.post("/send-bulk-smtp", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def send_bulk_email_via_smtp(
+    email_data: EmailCreate,
+    recipient_emails: List[str] = Body(..., description="List of recipient email addresses"),
+    current_user: User = Depends(get_current_user)
+):
+    """Send bulk email via SMTP to multiple email addresses"""
+    try:
+        result = await EmailService.send_bulk_email_via_smtp(str(current_user.id), email_data, recipient_emails)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sending bulk email via SMTP: {str(e)}"
+        )
+
 
 @router.post("/{email_id}/read", response_model=EmailResponse)
 async def mark_email_read(

@@ -23,10 +23,17 @@ class Settings:
     IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
     IMAP_PORT = os.getenv("IMAP_PORT", 993)
 
+    # SMTP configuration for sending emails
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", EMAIL_USERNAME)  # defaults to EMAIL_USERNAME if not set
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", EMAIL_PASSWORD)  # defaults to EMAIL_PASSWORD if not set
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "True").lower() == "true"
+
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-make-it-long-and-secure")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
     
     # Server Configuration
     HOST: str = os.getenv("HOST", "0.0.0.0")

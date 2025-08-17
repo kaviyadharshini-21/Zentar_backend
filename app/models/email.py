@@ -1,5 +1,5 @@
 from beanie import Document
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from pydantic import Field
 from bson import ObjectId
@@ -12,7 +12,7 @@ class Email(Document):
     threadId: ObjectId
     isRead: bool = False
     isDeleted: bool = False
-    sentAt: datetime = Field(default_factory=datetime.now)
+    sentAt: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     attachments: List[str] = Field(default_factory=list)
 
     class Settings:

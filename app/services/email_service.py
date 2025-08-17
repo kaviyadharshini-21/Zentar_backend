@@ -9,7 +9,7 @@ from email import encoders
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
@@ -435,8 +435,8 @@ class EmailService:
                     threadId=str(email["threadId"]),
                     isRead=email["isRead"],
                     isDeleted=email["isDeleted"],
-                    sentAt=email.sentAt,
-                    attachments=email.attachments
+                    sentAt=email["sentAt"],
+                    attachments=email["attachments"]
                 ))
             return EmailListResponse(
                 emails=email_responses,
@@ -497,27 +497,25 @@ class EmailService:
         """Send a new email"""
         try:
             # Convert string IDs to ObjectIds
-            to_user_ids = [ObjectId(user_id_str) for user_id_str in email_data.to_users]
-            
-            # Verify all recipients exist
-            for user_id_str in email_data.to_users:
-                recipient = await User.get(ObjectId(user_id_str))
-                if not recipient:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Recipient with ID {user_id_str} not found"
-                    )
-            
+            print(0)
+            to_user_ids = []
+            for email in email_data.to_users:
+                user = await User.find_one(User.email == email)
+                if not user:
+                    print(f"User with email {email} not found")
+                    raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+                to_user_ids.append(user.id)
+ 
             # Find or create thread
             thread = await Thread.find_one({
                 "participants": {"$all": [ObjectId(user_id)] + to_user_ids}
             })
-            
             if not thread:
                 # Create new thread
                 thread = Thread(participants=[ObjectId(user_id)] + to_user_ids)
+                thread.lastUpdated = datetime.now(timezone.utc)
                 await thread.insert()
-            
+            print(3)
             # Create email
             email = Email(
                 from_user=ObjectId(user_id),
@@ -527,12 +525,9 @@ class EmailService:
                 threadId=thread.id,
                 attachments=email_data.attachments or []
             )
-            
             await email.insert()
-            
             # Update thread with new email
             await thread.update({"$push": {"emails": email.id}, "$set": {"lastUpdated": datetime.now()}})
-            
             return EmailResponse(
                 id=str(email.id),
                 from_user=str(email.from_user),
@@ -546,9 +541,205 @@ class EmailService:
                 attachments=email.attachments
             )
         except Exception as e:
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error sending email: {str(e)}"
+            )
+
+    @staticmethod
+    async def send_email_via_smtp(user_id: str, email_data: EmailCreate) -> Dict[str, Any]:
+        """Send email via SMTP to actual email addresses"""
+        try:
+            # Get sender user details
+            print('Sending mail using SMTP')
+            sender = await User.get(ObjectId(user_id))
+            if not sender:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sender not found"
+                )
+            
+            # Get recipient email addresses
+            recipient_emails = email_data.to_users
+            # Check if SMTP settings are configured
+            if not all([settings.SMTP_SERVER, settings.SMTP_PORT, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="SMTP settings not configured. Please configure SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, and SMTP_PASSWORD."
+                )
+            
+            # Create email message
+            msg = MIMEMultipart()
+            msg['From'] = sender.email
+            msg['To'] = ', '.join(recipient_emails)
+            msg['Subject'] = email_data.subject
+            
+            # Add body
+            if email_data.body:
+                # Check if body is HTML or plain text
+                if '<html>' in email_data.body or '<body>' in email_data.body:
+                    msg.attach(MIMEText(email_data.body, 'html'))
+                else:
+                    msg.attach(MIMEText(email_data.body, 'plain'))
+            
+            # Add attachments if any
+            if email_data.attachments:
+                for attachment in email_data.attachments:
+                    if hasattr(attachment, 'filename') and hasattr(attachment, 'content'):
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(attachment.content)
+                        encoders.encode_base64(part)
+                        part.add_header(
+                            'Content-Disposition',
+                            f'attachment; filename= {attachment.filename}'
+                        )
+                        msg.attach(part)
+            
+            # Connect to SMTP server and send email
+            try:
+                if settings.SMTP_USE_TLS:
+                    server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
+                    server.starttls()
+                else:
+                    server = smtplib.SMTP_SSL(settings.SMTP_SERVER, settings.SMTP_PORT)
+                
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                
+                # Store email in database after successful sending
+                email_response = await EmailService.send_email(user_id, email_data)
+                
+                return {
+                    "success": True,
+                    "message": f"Email sent successfully to {', '.join(recipient_emails)}",
+                    "email_id": email_response.id,
+                    "recipients": recipient_emails
+                }
+                
+            except smtplib.SMTPAuthenticationError:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="SMTP authentication failed. Please check your SMTP credentials."
+                )
+            except smtplib.SMTPRecipientsRefused as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to send email to some recipients: {e}"
+                )
+            except smtplib.SMTPServerDisconnected:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="SMTP server disconnected unexpectedly."
+                )
+            except Exception as e:
+                print(e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"SMTP error: {str(e)}"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error sending email via SMTP: {str(e)}"
+            )
+
+    @staticmethod
+    async def send_bulk_email_via_smtp(user_id: str, email_data: EmailCreate, recipient_emails: List[str]) -> Dict[str, Any]:
+        """Send bulk email via SMTP to multiple email addresses"""
+        try:
+            # Get sender user details
+            sender = await User.get(ObjectId(user_id))
+            if not sender:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sender not found"
+                )
+            
+            # Check if SMTP settings are configured
+            if not all([settings.SMTP_SERVER, settings.SMTP_PORT, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="SMTP settings not configured. Please configure SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, and SMTP_PASSWORD."
+                )
+            
+            # Create email message
+            msg = MIMEMultipart()
+            msg['From'] = sender.email
+            msg['To'] = ', '.join(recipient_emails)
+            msg['Subject'] = email_data.subject
+            
+            # Add body
+            if email_data.body:
+                if '<html>' in email_data.body or '<body>' in email_data.body:
+                    msg.attach(MIMEText(email_data.body, 'html'))
+                else:
+                    msg.attach(MIMEText(email_data.body, 'plain'))
+            
+            # Add attachments if any
+            if email_data.attachments:
+                for attachment in email_data.attachments:
+                    if hasattr(attachment, 'filename') and hasattr(attachment, 'content'):
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(attachment.content)
+                        encoders.encode_base64(part)
+                        part.add_header(
+                            'Content-Disposition',
+                            f'attachment; filename= {attachment.filename}'
+                        )
+                        msg.attach(part)
+            
+            # Connect to SMTP server and send email
+            try:
+                if settings.SMTP_USE_TLS:
+                    server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
+                    server.starttls()
+                else:
+                    server = smtplib.SMTP_SSL(settings.SMTP_SERVER, settings.SMTP_PORT)
+                
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                
+                return {
+                    "success": True,
+                    "message": f"Bulk email sent successfully to {len(recipient_emails)} recipients",
+                    "recipients": recipient_emails,
+                    "total_sent": len(recipient_emails)
+                }
+                
+            except smtplib.SMTPAuthenticationError:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="SMTP authentication failed. Please check your SMTP credentials."
+                )
+            except smtplib.SMTPRecipientsRefused as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to send email to some recipients: {e}"
+                )
+            except smtplib.SMTPServerDisconnected:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="SMTP server disconnected unexpectedly."
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"SMTP error: {str(e)}"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error sending bulk email via SMTP: {str(e)}"
             )
 
     @staticmethod

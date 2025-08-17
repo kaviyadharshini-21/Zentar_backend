@@ -1,5 +1,5 @@
 from beanie import Document
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import Field
 from bson import ObjectId
 
